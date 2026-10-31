@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eff6ff">
+  <title>Flovely — Bouquet untuk setiap cerita</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/api.js" defer></script>
+  <script src="/js/header.js" defer></script>
+  <script src="/js/index.js" defer></script>
+</head>
+<body>
+  <div id="site-header"></div>
+  <main>
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <span class="eyebrow">BLOOM WITH LOVE</span>
+        <h1>Setiap bunga punya <em>cerita.</em></h1>
+        <p>Rangkaian bunga pilihan, dirangkai sepenuh hati untuk momen yang ingin selalu diingat.</p>
+        <a class="button button-primary" href="#bouquets">Temukan bouquet <span aria-hidden="true">→</span></a>
+        <div class="hero-note"><span class="avatar-stack">✿ ♡ ✿</span><span>Dirangkai dengan cinta, dikirim dengan senyum.</span></div>
+      </div>
+      <div class="hero-art" role="img" aria-label="Rangkaian bunga berwarna lembut">
+        <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=1100&q=90" alt="Bouquet bunga segar dalam warna pastel">
+        <div class="floating-note"><span>✿</span><div><strong>Made with love</strong><small>Untuk orang tersayang</small></div></div>
+      </div>
+      <div class="hero-sparkle sparkle-one">✳</div>
+      <div class="hero-sparkle sparkle-two">✿</div>
+    </section>
+
+    <section class="benefits wrap" aria-label="Keunggulan Flovely">
+      <div><span class="benefit-icon">✿</span><span><strong>Bunga segar</strong><small>Dipilih setiap hari</small></span></div>
+      <div><span class="benefit-icon">♡</span><span><strong>Dirangkai personal</strong><small>Sepenuh hati untukmu</small></span></div>
+      <div><span class="benefit-icon">⌁</span><span><strong>Pengiriman aman</strong><small>Sampai dengan cantik</small></span></div>
+    </section>
+
+    <section class="section wrap" id="bouquets">
+      <div class="section-heading">
+        <div><span class="eyebrow">PILIHAN HARI INI</span><h2>Buket <em>Populer</em></h2><p>Temukan rangkaian yang paling pas untuk momenmu.</p></div>
+        <label class="search-box"><span aria-hidden="true">⌕</span><input id="product-search" type="search" placeholder="Cari bouquet..." aria-label="Cari bouquet"></label>
+      </div>
+      <div id="product-list" class="product-grid" aria-live="polite"><p class="muted">Memuat bouquet favorit...</p></div>
+    </section>
+    <section class="quote-banner wrap"><span>“</span><p>Flowers are a gentle reminder that beautiful things take time to bloom.</p><span class="quote-flower">✿</span></section>
+  </main>
+  <footer class="footer"><div class="wrap footer-inner"><a class="brand" href="/">flovely<span>.</span></a><p>Dibuat dengan <span class="pink">♥</span> untuk momen berhargamu.</p><small>© 2026 Flovely</small></div></footer>
+</body>
+</html>

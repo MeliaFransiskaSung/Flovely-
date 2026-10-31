@@ -1,0 +1,25 @@
+# Flovely
+
+Toko bouquet sederhana menggunakan HTML, CSS, JavaScript, Express, dan Supabase.
+
+## Menjalankan aplikasi
+
+1. Pastikan Node.js versi 18 atau lebih baru sudah terpasang.
+2. Buat project Supabase, lalu jalankan seluruh isi `supabase-schema.sql` melalui **SQL Editor** Supabase. Script membuat tabel, relasi, kebijakan RLS, fungsi checkout, dan enam produk contoh.
+3. Salin `.env.example` menjadi `.env`, lalu isi `SUPABASE_URL` dan `SUPABASE_KEY` dari pengaturan project Supabase. Gunakan publishable/anon key, **jangan** gunakan service-role key.
+4. Jalankan:
+
+   ```sh
+   npm install
+   npm start
+   ```
+
+5. Buka `http://localhost:3000`.
+
+File `.env` hanya digunakan server dan diabaikan Git. Jika konfirmasi email Supabase aktif, verifikasi email sebelum login. Profile dibuat otomatis ketika pengguna mendaftar.
+
+## Catatan aplikasi
+
+- Endpoint privat memverifikasi access token Supabase dan menjalankan query menggunakan token pengguna. RLS membatasi akses profil, keranjang, wishlist, dan pesanan ke pemiliknya.
+- Checkout dijalankan dalam satu fungsi database agar total dihitung dari harga produk di database, stok diperiksa/dikurangi, pesanan disimpan, dan keranjang dibersihkan secara atomik.
+- Harga ukuran Medium adalah 1,25× harga dasar dan Large 1,5×, dibulatkan ke Rp1.000 terdekat. Ongkos kirim belum termasuk dan dikonfirmasi terpisah.
