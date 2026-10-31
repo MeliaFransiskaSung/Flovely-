@@ -12,7 +12,7 @@
           <label class="form-stack">Alamat<textarea name="alamat" maxlength="500" required placeholder="Alamat lengkap">${Flovely.escapeHtml(profile.alamat || "")}</textarea></label>
           <div class="form-message" aria-live="polite"></div><button class="button button-primary" type="submit">Simpan perubahan</button>
         </form></section>
-        <aside class="profile-links"><a href="/orders.html">Pesanan saya <span>→</span></a><a href="/wishlist.html">Wishlist <span>→</span></a><a href="/cart.html">Keranjang <span>→</span></a><button type="button" id="logout-button">Logout <span>↗</span></button></aside>
+        <aside class="profile-links"><a href="orders.html">Pesanan saya <span>→</span></a><a href="wishlist.html">Wishlist <span>→</span></a><a href="cart.html">Keranjang <span>→</span></a><button type="button" id="logout-button">Logout <span>↗</span></button></aside>
       </div>`;
 
     const form = root.querySelector("#profile-form");
@@ -43,10 +43,10 @@
         // Token lokal tetap dihapus saat sesi server sudah berakhir.
       } finally {
         Flovely.clearSession();
-        window.location.href = "/";
+        window.location.href = "index.html";
       }
     });
   }).catch((error) => {
-    root.innerHTML = `<div class="empty-state">${Flovely.escapeHtml(error.message)}<p><a href="/login.html">Login kembali</a></p></div>`;
+    root.innerHTML = `<div class="empty-state">${Flovely.escapeHtml(error.message)}<p><a href="login.html">Login kembali</a></p></div>`;
   });
 })();

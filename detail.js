@@ -2,7 +2,7 @@
   const root = document.getElementById("detail-root");
   const productId = new URLSearchParams(window.location.search).get("id");
   if (!productId) {
-    root.innerHTML = '<div class="empty-state">Bouquet tidak ditemukan. <a href="/">Kembali ke halaman utama</a></div>';
+    root.innerHTML = '<div class="empty-state">Bouquet tidak ditemukan. <a href="index.html">Kembali ke halaman utama</a></div>';
     return;
   }
 
@@ -54,7 +54,7 @@
       render();
     })
     .catch((error) => {
-      root.innerHTML = `<div class="empty-state">${Flovely.escapeHtml(error.message)}<p><a href="/">Kembali ke halaman utama</a></p></div>`;
+      root.innerHTML = `<div class="empty-state">${Flovely.escapeHtml(error.message)}<p><a href="index.html">Kembali ke halaman utama</a></p></div>`;
     });
 
   root.addEventListener("click", async (event) => {
@@ -68,7 +68,7 @@
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (!action || !product) return;
     if (!Flovely.hasSession()) {
-      window.location.href = `/login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      window.location.href = `login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       return;
     }
 
@@ -93,7 +93,7 @@
         method: "POST",
         body: JSON.stringify({ product_id: product.id, ...selection })
       });
-      if (action === "buy") window.location.href = "/checkout.html";
+      if (action === "buy") window.location.href = "checkout.html";
       else {
         message.textContent = "Bouquet berhasil ditambahkan ke keranjang.";
         message.classList.add("success");

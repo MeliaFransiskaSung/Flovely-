@@ -14,7 +14,7 @@
       });
       Flovely.saveSession(result.session);
       const next = new URLSearchParams(window.location.search).get("next");
-      window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      window.location.href = next && next.startsWith("/") && !next.startsWith("//") ? next : "index.html";
     } catch (error) {
       message.textContent = error.message;
       button.disabled = false;

@@ -4,7 +4,7 @@
 
   function render(items) {
     if (!items.length) {
-      root.innerHTML = '<div class="empty-state"><p>Keranjangmu masih kosong.</p><a class="button button-primary" href="/">Jelajahi bouquet</a></div>';
+      root.innerHTML = '<div class="empty-state"><p>Keranjangmu masih kosong.</p><a class="button button-primary" href="index.html">Jelajahi bouquet</a></div>';
       return;
     }
 
@@ -19,7 +19,7 @@
             </div>
             <div class="cart-item-price">${Flovely.formatPrice(Flovely.priceForSize(item.product.harga, item.ukuran) * item.jumlah)}</div>
           </article>`).join("")}</div>
-        <aside class="summary-card"><h2>Ringkasan belanja</h2><div class="summary-line"><span>Subtotal (${items.length} item)</span><strong>${Flovely.formatPrice(subtotal)}</strong></div><div class="summary-line"><span>Pengiriman</span><span>Dihitung saat konfirmasi</span></div><div class="summary-line summary-total"><span>Total sementara</span><strong>${Flovely.formatPrice(subtotal)}</strong></div><a class="button button-primary" href="/checkout.html">Pesan Sekarang →</a><p class="summary-hint">Ongkir akan dikonfirmasi oleh tim Flovely.</p></aside>
+        <aside class="summary-card"><h2>Ringkasan belanja</h2><div class="summary-line"><span>Subtotal (${items.length} item)</span><strong>${Flovely.formatPrice(subtotal)}</strong></div><div class="summary-line"><span>Pengiriman</span><span>Dihitung saat konfirmasi</span></div><div class="summary-line summary-total"><span>Total sementara</span><strong>${Flovely.formatPrice(subtotal)}</strong></div><a class="button button-primary" href="checkout.html">Pesan Sekarang →</a><p class="summary-hint">Ongkir akan dikonfirmasi oleh tim Flovely.</p></aside>
       </div>`;
   }
 

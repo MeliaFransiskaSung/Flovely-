@@ -4,11 +4,6 @@
   let savedIds = new Set();
   let searchTimer;
 
-  // Inisialisasi Supabase Client
-  const SUPABASE_URL = 'https://ypcaujoqkqhwxhrlpely.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_uC5vBxTOp19NaZucxQnr4Q_f2-w6rwL';
-  const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
   function productCard(product) {
     const saved = savedIds.has(product.id);
     return `
@@ -25,22 +20,11 @@
       </article>`;
   }
 
-  // Ambil data produk langsung dari Supabase
   async function loadProducts(query = "") {
     grid.innerHTML = '<p class="muted">Memuat bouquet favorit...</p>';
     try {
-      if (!supabaseClient) throw new Error("Supabase SDK belum dimuat di HTML.");
-
-      let dbQuery = supabaseClient.from("products").select("*");
-      if (query) {
-        dbQuery = dbQuery.ilike("nama_produk", `%${query}%`);
-      }
-
-      const { data: products, error } = await dbQuery;
-
-      if (error) throw error;
-
-      grid.innerHTML = products && products.length
+      const products = await Flovely.request(`/api/products${query ? `?q=${encodeURIComponent(query)}` : ""}`);
+      grid.innerHTML = products.length
         ? products.map(productCard).join("")
         : '<div class="empty-state">Bouquet tidak ditemukan. Coba kata pencarian lain.</div>';
     } catch (error) {
@@ -48,29 +32,19 @@
     }
   }
 
-  // Muat Wishlist User dari Supabase
   async function initWishlist() {
     try {
-      if (!supabaseClient) return;
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      if (user) {
-        const { data: items, error } = await supabaseClient
-          .from("wishlists")
-          .select("product_id")
-          .eq("user_id", user.id);
-
-        if (!error && items) {
-          savedIds = new Set(items.map((item) => item.product_id));
-        }
+      if (Flovely.hasSession()) {
+        const items = await Flovely.request("/api/wishlist");
+        savedIds = new Set(items.map((item) => item.product_id));
       }
-    } catch (err) {
-      console.error("Gagal mengambil wishlist:", err);
+    } catch (error) {
+      console.error("Gagal mengambil wishlist:", error);
     } finally {
       loadProducts(searchInput ? searchInput.value.trim() : "");
     }
   }
 
-  // Panggil Inisialisasi
   initWishlist();
 
   if (searchInput) {
@@ -80,38 +54,26 @@
     });
   }
 
-  // Toggle Wishlist via Supabase
   grid.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-wishlist]");
     if (!button) return;
 
-    if (!supabaseClient) return;
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-      window.location.href = `login.html?next=${encodeURIComponent("index.html")}`;
+    if (!Flovely.hasSession()) {
+      const next = window.location.pathname + window.location.search;
+      window.location.href = `login.html?next=${encodeURIComponent(next)}`;
       return;
     }
 
     const productId = button.dataset.wishlist;
     try {
       if (savedIds.has(productId)) {
-        // Hapus dari wishlist
-        const { error } = await supabaseClient
-          .from("wishlists")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("product_id", productId);
-
-        if (error) throw error;
+        await Flovely.request(`/api/wishlist/${encodeURIComponent(productId)}`, { method: "DELETE" });
         savedIds.delete(productId);
       } else {
-        // Tambahkan ke wishlist
-        const { error } = await supabaseClient
-          .from("wishlists")
-          .insert([{ user_id: user.id, product_id: productId }]);
-
-        if (error) throw error;
+        await Flovely.request("/api/wishlist", {
+          method: "POST",
+          body: JSON.stringify({ product_id: productId })
+        });
         savedIds.add(productId);
       }
 

@@ -25,7 +25,7 @@
       });
       if (result.session) {
         Flovely.saveSession(result.session);
-        window.location.href = "/";
+        window.location.href = "index.html";
         return;
       }
       message.textContent = result.message;

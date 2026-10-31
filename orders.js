@@ -11,7 +11,7 @@
 
   Flovely.request("/api/orders").then((orders) => {
     if (!orders.length) {
-      root.innerHTML = '<div class="empty-state"><p>Belum ada pesanan.</p><a class="button button-primary" href="/">Jelajahi bouquet</a></div>';
+      root.innerHTML = '<div class="empty-state"><p>Belum ada pesanan.</p><a class="button button-primary" href="index.html">Jelajahi bouquet</a></div>';
       return;
     }
 
