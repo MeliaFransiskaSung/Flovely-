@@ -13,9 +13,9 @@
         </a>
         <button class="wishlist-button${saved ? " saved" : ""}" type="button" data-wishlist="${Flovely.escapeHtml(product.id)}" aria-label="${saved ? "Hapus dari" : "Simpan ke"} wishlist" aria-pressed="${saved}">${saved ? "♥" : "♡"}</button>
         <div class="product-info">
-          <div class="product-rating">★ ${Number(product.rating || 5).toFixed(1)} <span>· Bouquet pilihan</span></div>
           <h3>${Flovely.escapeHtml(product.nama_produk)}</h3>
-          <div class="product-bottom"><span class="product-price">${Flovely.formatPrice(product.harga)}</span><a class="product-link" href="detail.html?id=${encodeURIComponent(product.id)}">Lihat detail →</a></div>
+          <div class="product-rating">★ ${Number(product.rating || 5).toFixed(1)} <span>· Favorit pelanggan</span></div>
+          <div class="product-bottom"><span class="product-price">${Flovely.formatPrice(product.harga)}</span></div>
         </div>
       </article>`;
   }

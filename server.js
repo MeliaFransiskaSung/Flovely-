@@ -17,6 +17,22 @@ if (!supabaseUrl || !supabaseKey) {
 app.use(express.json({ limit: "20kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
+const webFiles = new Set([
+  "cart.html", "cart.js", "checkout.html", "checkout.js", "detail.html", "detail.js",
+  "header.js", "index.html", "index.js", "login.html", "login.js", "orders.html",
+  "orders.js", "profile.html", "profile.js", "register.html", "register.js", "style.css",
+  "wishlist.html", "wishlist.js", "api.js"
+]);
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.get("/:file", (req, res, next) => {
+  if (!webFiles.has(req.params.file)) return next();
+  res.sendFile(path.join(__dirname, req.params.file));
+});
+
 function createSupabase(token) {
   return createClient(supabaseUrl, supabaseKey, {
     auth: { autoRefreshToken: false, persistSession: false },
