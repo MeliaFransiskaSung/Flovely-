@@ -68,10 +68,36 @@ create table if not exists public.order_items (
   pesan_ucapan text not null default ''
 );
 
+create table if not exists public.guest_orders (
+  id uuid primary key default gen_random_uuid(),
+  nomor_pesanan text not null unique,
+  nama_penerima text not null,
+  nomor_hp text not null,
+  alamat text not null,
+  total_harga integer not null check (total_harga >= 0),
+  metode_pembayaran text not null,
+  status text not null default 'Menunggu Pembayaran'
+    check (status in ('Menunggu Pembayaran', 'Diproses', 'Dikirim', 'Selesai')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.guest_order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.guest_orders(id) on delete cascade,
+  product_id uuid not null references public.products(id) on delete restrict,
+  nama_produk text not null,
+  ukuran text not null,
+  warna text not null,
+  jumlah integer not null check (jumlah > 0),
+  harga integer not null check (harga >= 0),
+  pesan_ucapan text not null default ''
+);
+
 create index if not exists cart_user_id_idx on public.cart(user_id);
 create index if not exists wishlist_user_id_idx on public.wishlist(user_id);
 create index if not exists orders_user_id_created_at_idx on public.orders(user_id, created_at desc);
 create index if not exists order_items_order_id_idx on public.order_items(order_id);
+create index if not exists guest_order_items_order_id_idx on public.guest_order_items(order_id);
 
 create or replace function public.create_flovely_profile()
 returns trigger
@@ -103,6 +129,9 @@ alter table public.cart enable row level security;
 alter table public.wishlist enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
+alter table public.guest_orders enable row level security;
+alter table public.guest_order_items enable row level security;
+revoke all on public.guest_orders, public.guest_order_items from anon, authenticated;
 
 drop policy if exists "Public can read products" on public.products;
 create policy "Public can read products" on public.products
@@ -229,6 +258,164 @@ $$;
 
 revoke all on function public.create_flovely_order(text, text, text, text, text) from public, anon;
 grant execute on function public.create_flovely_order(text, text, text, text, text) to authenticated;
+
+create or replace function public.create_flovely_guest_order(
+  p_nama_penerima text,
+  p_nomor_hp text,
+  p_alamat text,
+  p_pesan_tambahan text,
+  p_metode_pembayaran text,
+  p_items jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_order_id uuid;
+  v_order_number text;
+  v_total integer;
+begin
+  if nullif(trim(p_nama_penerima), '') is null
+    or length(p_nama_penerima) > 100
+    or nullif(trim(p_nomor_hp), '') is null
+    or length(p_nomor_hp) > 30
+    or nullif(trim(p_alamat), '') is null
+    or length(p_alamat) > 500
+    or coalesce(length(p_pesan_tambahan), 0) > 500
+    or p_metode_pembayaran is null
+    or p_metode_pembayaran not in ('Transfer Bank', 'COD', 'QRIS') then
+    raise exception 'INVALID_ORDER';
+  end if;
+
+  if jsonb_typeof(p_items) is distinct from 'array' then
+    raise exception 'EMPTY_CART';
+  end if;
+  if jsonb_array_length(p_items) < 1 then
+    raise exception 'EMPTY_CART';
+  end if;
+  if jsonb_array_length(p_items) > 100 then
+    raise exception 'INVALID_ORDER';
+  end if;
+
+  if exists (
+    select 1 from jsonb_array_elements(p_items) as entry(value)
+    where jsonb_typeof(value) is distinct from 'object'
+  ) then
+    raise exception 'INVALID_ORDER';
+  end if;
+
+  if exists (
+    select 1 from jsonb_array_elements(p_items) as entry(value)
+    where jsonb_typeof(value -> 'product_id') is distinct from 'string'
+      or (value ->> 'product_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      or jsonb_typeof(value -> 'ukuran') is distinct from 'string'
+      or value ->> 'ukuran' not in ('Small', 'Medium', 'Large')
+      or jsonb_typeof(value -> 'warna') is distinct from 'string'
+      or nullif(trim(value ->> 'warna'), '') is null
+      or length(value ->> 'warna') > 40
+      or jsonb_typeof(value -> 'jumlah') is distinct from 'number'
+      or (value ->> 'jumlah') !~ '^[1-9][0-9]?$'
+      or (value ? 'pesan_ucapan' and jsonb_typeof(value -> 'pesan_ucapan') is distinct from 'string')
+      or length(coalesce(value ->> 'pesan_ucapan', '')) > 300
+  ) then
+    raise exception 'INVALID_ORDER';
+  end if;
+
+  perform p.id
+  from public.products p
+  where p.id in (
+    select distinct (value ->> 'product_id')::uuid
+    from jsonb_array_elements(p_items) as entry(value)
+  )
+  order by p.id
+  for update;
+
+  if exists (
+    select 1
+    from (
+      select (value ->> 'product_id')::uuid as product_id
+      from jsonb_array_elements(p_items) as entry(value)
+      group by (value ->> 'product_id')::uuid
+    ) requested
+    left join public.products p on p.id = requested.product_id
+    where p.id is null
+  ) then
+    raise exception 'PRODUCT_NOT_FOUND';
+  end if;
+
+  if exists (
+    select 1
+    from public.products p
+    join (
+      select (value ->> 'product_id')::uuid as product_id,
+        sum((value ->> 'jumlah')::integer)::integer as jumlah
+      from jsonb_array_elements(p_items) as entry(value)
+      group by (value ->> 'product_id')::uuid
+    ) requested on requested.product_id = p.id
+    where p.stok < requested.jumlah
+  ) then
+    raise exception 'INSUFFICIENT_STOCK';
+  end if;
+
+  select sum(
+    (value ->> 'jumlah')::integer * case value ->> 'ukuran'
+      when 'Medium' then round(p.harga * 1.25 / 1000) * 1000
+      when 'Large' then round(p.harga * 1.5 / 1000) * 1000
+      else p.harga
+    end
+  )::integer into v_total
+  from jsonb_array_elements(p_items) as entry(value)
+  join public.products p on p.id = (value ->> 'product_id')::uuid;
+
+  v_order_number := 'FLV-' || to_char(now(), 'YYYYMMDD') || '-'
+    || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
+
+  insert into public.guest_orders (
+    nomor_pesanan, nama_penerima, nomor_hp, alamat,
+    total_harga, metode_pembayaran, status
+  ) values (
+    v_order_number, trim(p_nama_penerima), trim(p_nomor_hp), trim(p_alamat),
+    v_total, p_metode_pembayaran, 'Menunggu Pembayaran'
+  ) returning id into v_order_id;
+
+  insert into public.guest_order_items (
+    order_id, product_id, nama_produk, ukuran, warna, jumlah, harga, pesan_ucapan
+  )
+  select
+    v_order_id, p.id, p.nama_produk, value ->> 'ukuran', value ->> 'warna',
+    (value ->> 'jumlah')::integer,
+    case value ->> 'ukuran'
+      when 'Medium' then round(p.harga * 1.25 / 1000) * 1000
+      when 'Large' then round(p.harga * 1.5 / 1000) * 1000
+      else p.harga
+    end::integer,
+    concat_ws(E'\n', nullif(value ->> 'pesan_ucapan', ''), nullif(trim(p_pesan_tambahan), ''))
+  from jsonb_array_elements(p_items) as entry(value)
+  join public.products p on p.id = (value ->> 'product_id')::uuid;
+
+  update public.products p
+  set stok = p.stok - requested.jumlah
+  from (
+    select (value ->> 'product_id')::uuid as product_id,
+      sum((value ->> 'jumlah')::integer)::integer as jumlah
+    from jsonb_array_elements(p_items) as entry(value)
+    group by (value ->> 'product_id')::uuid
+  ) requested
+  where p.id = requested.product_id;
+
+  return jsonb_build_object(
+    'id', v_order_id,
+    'nomor_pesanan', v_order_number,
+    'total_harga', v_total,
+    'status', 'Menunggu Pembayaran'
+  );
+end;
+$$;
+
+revoke all on function public.create_flovely_guest_order(text, text, text, text, text, jsonb) from public, authenticated;
+grant execute on function public.create_flovely_guest_order(text, text, text, text, text, jsonb) to anon;
 
 -- Data contoh. Gambar menggunakan foto bouquet dari Unsplash.
 insert into public.products (nama_produk, deskripsi, harga, gambar, kategori, rating, stok)

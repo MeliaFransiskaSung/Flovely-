@@ -3,6 +3,8 @@
   const SUPABASE_KEY = "sb_publishable_uC5vBXtOP19NaZucxQnr4Q_f2-w6rwL";
   const LEGACY_TOKEN_KEY = "flovely_access_token";
   const LEGACY_REFRESH_KEY = "flovely_refresh_token";
+  const GUEST_CART_KEY = "flovely_guest_cart";
+  const GUEST_WISHLIST_KEY = "flovely_guest_wishlist";
 
   const client = window.supabase
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -25,6 +27,122 @@
 
   function validVariant(ukuran, warna) {
     return ["Small", "Medium", "Large"].includes(ukuran) && text(warna, 40);
+  }
+
+  function readGuestList(key, label) {
+    const stored = localStorage.getItem(key);
+    if (!stored) return [];
+    let items;
+    try {
+      items = JSON.parse(stored);
+    } catch {
+      throw clientError(`Data ${label} lokal rusak. Hapus data situs lalu coba lagi.`);
+    }
+    if (!Array.isArray(items)) {
+      throw clientError(`Data ${label} lokal rusak. Hapus data situs lalu coba lagi.`);
+    }
+    return items;
+  }
+
+  function saveGuestList(key, items) {
+    localStorage.setItem(key, JSON.stringify(items));
+  }
+
+  async function getProduct(productId) {
+    const { data, error } = await client
+      .from("products")
+      .select("*")
+      .eq("id", productId)
+      .maybeSingle();
+    if (error) throw databaseError(error, "Gagal memeriksa bouquet.");
+    if (!data) throw clientError("Bouquet tidak ditemukan.");
+    return data;
+  }
+
+  function listGuestCart() {
+    return readGuestList(GUEST_CART_KEY, "keranjang");
+  }
+
+  async function addGuestCart(body) {
+    const { product_id, ukuran, warna, jumlah, pesan_ucapan = "" } = body || {};
+    const quantity = Number(jumlah);
+    if (!text(product_id, 80) || !validVariant(ukuran, warna)
+      || !Number.isInteger(quantity) || quantity < 1 || quantity > 99
+      || typeof pesan_ucapan !== "string" || pesan_ucapan.length > 300) {
+      throw clientError("Pilihan bouquet atau jumlah tidak valid.");
+    }
+
+    const product = await getProduct(product_id);
+    const items = listGuestCart();
+    const existing = items.find((item) => item.product_id === product_id
+      && item.ukuran === ukuran && item.warna === warna);
+    const nextQuantity = (existing ? existing.jumlah : 0) + quantity;
+    if (nextQuantity > product.stok) throw clientError("Jumlah melebihi stok yang tersedia.");
+
+    if (existing) {
+      existing.jumlah = nextQuantity;
+      existing.pesan_ucapan = pesan_ucapan;
+      existing.product = product;
+      saveGuestList(GUEST_CART_KEY, items);
+      return existing;
+    }
+
+    const item = {
+      id: window.crypto.randomUUID(),
+      product_id,
+      ukuran,
+      warna,
+      jumlah: quantity,
+      pesan_ucapan,
+      created_at: new Date().toISOString(),
+      product
+    };
+    items.push(item);
+    saveGuestList(GUEST_CART_KEY, items);
+    return item;
+  }
+
+  function updateGuestCartItem(id, body) {
+    const quantity = Number(body && body.jumlah);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+      throw clientError("Jumlah harus berupa angka antara 1 dan 99.");
+    }
+    const items = listGuestCart();
+    const item = items.find((entry) => entry.id === id);
+    if (!item) throw clientError("Item keranjang tidak ditemukan.");
+    if (quantity > item.product.stok) throw clientError("Jumlah melebihi stok yang tersedia.");
+    item.jumlah = quantity;
+    saveGuestList(GUEST_CART_KEY, items);
+    return item;
+  }
+
+  function removeGuestCartItem(id) {
+    const items = listGuestCart();
+    saveGuestList(GUEST_CART_KEY, items.filter((item) => item.id !== id));
+    return { message: "Item dihapus dari keranjang." };
+  }
+
+  function listGuestWishlist() {
+    return readGuestList(GUEST_WISHLIST_KEY, "wishlist");
+  }
+
+  async function addGuestWishlist(body) {
+    const product_id = body && body.product_id;
+    if (!text(product_id, 80)) throw clientError("Produk tidak valid.");
+    const items = listGuestWishlist();
+    if (items.some((item) => item.product_id === product_id)) {
+      return { product_id };
+    }
+    const product = await getProduct(product_id);
+    items.unshift({ id: product_id, product_id, created_at: new Date().toISOString(), product });
+    saveGuestList(GUEST_WISHLIST_KEY, items);
+    return { product_id };
+  }
+
+  function removeGuestWishlist(productId) {
+    saveGuestList(GUEST_WISHLIST_KEY, listGuestWishlist()
+      .filter((item) => item.product_id !== productId));
+    return { message: "Bouquet dihapus dari wishlist." };
   }
 
   async function getUser() {
@@ -234,6 +352,7 @@
     if (error) {
       const message = error.message.includes("EMPTY_CART") ? "Keranjang Anda masih kosong."
         : error.message.includes("INSUFFICIENT_STOCK") ? "Stok bouquet tidak mencukupi. Perbarui keranjang Anda."
+          : error.message.includes("PRODUCT_NOT_FOUND") ? "Bouquet tidak ditemukan. Perbarui keranjang Anda."
           : "Pesanan gagal dibuat. Silakan periksa data dan coba lagi.";
       throw clientError(message);
     }
@@ -245,6 +364,37 @@
       .eq("user_id", userId)
       .single();
     if (readError) throw databaseError(readError, "Pesanan dibuat, tetapi ringkasannya gagal dimuat.");
+    return data;
+  }
+
+  async function createGuestOrder(body) {
+    const { nama_penerima, nomor_hp, alamat, pesan_tambahan = "", metode_pembayaran } = body || {};
+    if (!text(nama_penerima, 100) || !text(nomor_hp, 30) || !text(alamat, 500)
+      || typeof pesan_tambahan !== "string" || pesan_tambahan.length > 500
+      || !["Transfer Bank", "COD", "QRIS"].includes(metode_pembayaran)) {
+      throw clientError("Periksa kembali data penerima dan metode pembayaran.");
+    }
+    const items = listGuestCart();
+    if (!items.length) throw clientError("Keranjang Anda masih kosong.");
+
+    const { data, error } = await client.rpc("create_flovely_guest_order", {
+      p_nama_penerima: nama_penerima.trim(),
+      p_nomor_hp: nomor_hp.trim(),
+      p_alamat: alamat.trim(),
+      p_pesan_tambahan: pesan_tambahan.trim(),
+      p_metode_pembayaran: metode_pembayaran,
+      p_items: items.map(({ product_id, ukuran, warna, jumlah, pesan_ucapan }) => ({
+        product_id, ukuran, warna, jumlah, pesan_ucapan
+      }))
+    });
+    if (error) {
+      const message = error.message.includes("EMPTY_CART") ? "Keranjang Anda masih kosong."
+        : error.message.includes("INSUFFICIENT_STOCK") ? "Stok bouquet tidak mencukupi. Perbarui keranjang Anda."
+          : error.message.includes("PRODUCT_NOT_FOUND") ? "Bouquet tidak ditemukan. Perbarui keranjang Anda."
+          : "Pesanan gagal dibuat. Silakan periksa data dan coba lagi.";
+      throw clientError(message);
+    }
+    saveGuestList(GUEST_CART_KEY, []);
     return data;
   }
 
@@ -332,36 +482,44 @@
     }
 
     if (path === "/api/cart" && method === "GET") {
-      return listCart((await requireUser()).id);
+      return hasSession() ? listCart((await requireUser()).id) : listGuestCart();
     }
 
     if (path === "/api/cart" && method === "POST") {
-      return addToCart((await requireUser()).id, body);
+      return hasSession() ? addToCart((await requireUser()).id, body) : addGuestCart(body);
     }
 
     const cartMatch = path.match(/^\/api\/cart\/([^/]+)$/);
     if (cartMatch && method === "PUT") {
-      return updateCartItem((await requireUser()).id, decodeURIComponent(cartMatch[1]), body);
+      return hasSession()
+        ? updateCartItem((await requireUser()).id, decodeURIComponent(cartMatch[1]), body)
+        : updateGuestCartItem(decodeURIComponent(cartMatch[1]), body);
     }
     if (cartMatch && method === "DELETE") {
-      return removeCartItem((await requireUser()).id, decodeURIComponent(cartMatch[1]));
+      return hasSession()
+        ? removeCartItem((await requireUser()).id, decodeURIComponent(cartMatch[1]))
+        : removeGuestCartItem(decodeURIComponent(cartMatch[1]));
     }
 
     if (path === "/api/wishlist" && method === "GET") {
-      return listWishlist((await requireUser()).id);
+      return hasSession() ? listWishlist((await requireUser()).id) : listGuestWishlist();
     }
 
     if (path === "/api/wishlist" && method === "POST") {
-      return addToWishlist((await requireUser()).id, body);
+      return hasSession() ? addToWishlist((await requireUser()).id, body) : addGuestWishlist(body);
     }
 
     const wishlistMatch = path.match(/^\/api\/wishlist\/([^/]+)$/);
     if (wishlistMatch && method === "DELETE") {
-      return removeFromWishlist((await requireUser()).id, decodeURIComponent(wishlistMatch[1]));
+      return hasSession()
+        ? removeFromWishlist((await requireUser()).id, decodeURIComponent(wishlistMatch[1]))
+        : removeGuestWishlist(decodeURIComponent(wishlistMatch[1]));
     }
 
     if (path === "/api/orders" && method === "POST") {
-      return createOrder((await requireUser()).id, body);
+      return hasSession()
+        ? createOrder((await requireUser()).id, body)
+        : createGuestOrder(body);
     }
 
     if (path === "/api/orders" && method === "GET") {

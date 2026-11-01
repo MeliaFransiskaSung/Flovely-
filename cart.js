@@ -1,6 +1,5 @@
 (function () {
   const root = document.getElementById("cart-root");
-  if (!Flovely.requireSession()) return;
 
   function render(items) {
     if (!items.length) {

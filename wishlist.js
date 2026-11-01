@@ -1,6 +1,5 @@
 (function () {
   const root = document.getElementById("wishlist-root");
-  if (!Flovely.requireSession()) return;
 
   async function load() {
     try {

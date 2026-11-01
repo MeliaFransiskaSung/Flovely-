@@ -34,10 +34,8 @@
 
   async function initWishlist() {
     try {
-      if (Flovely.hasSession()) {
-        const items = await Flovely.request("/api/wishlist");
-        savedIds = new Set(items.map((item) => item.product_id));
-      }
+      const items = await Flovely.request("/api/wishlist");
+      savedIds = new Set(items.map((item) => item.product_id));
     } catch (error) {
       console.error("Gagal mengambil wishlist:", error);
     } finally {
@@ -57,12 +55,6 @@
   grid.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-wishlist]");
     if (!button) return;
-
-    if (!Flovely.hasSession()) {
-      const next = window.location.pathname + window.location.search;
-      window.location.href = `login.html?next=${encodeURIComponent(next)}`;
-      return;
-    }
 
     const productId = button.dataset.wishlist;
     try {

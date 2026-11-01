@@ -14,6 +14,7 @@
     { name: "Lavender", value: "#aa85e8" }
   ];
   let product;
+  let isWishlisted = false;
 
   function currentSelection() {
     return {
@@ -35,7 +36,7 @@
         <div class="detail-image">
           <img src="${Flovely.escapeHtml(product.gambar)}" alt="${Flovely.escapeHtml(product.nama_produk)}">
           <a class="detail-image-button detail-back" href="index.html" aria-label="Kembali ke halaman utama">←</a>
-          <button class="detail-image-button detail-wishlist" type="button" data-action="wishlist" aria-label="Simpan ke wishlist">♡</button>
+          <button class="detail-image-button detail-wishlist${isWishlisted ? " saved" : ""}" type="button" data-action="wishlist" aria-label="${isWishlisted ? "Hapus dari" : "Simpan ke"} wishlist" aria-pressed="${isWishlisted}">${isWishlisted ? "♥" : "♡"}</button>
         </div>
         <section class="detail-copy">
           <h1>${Flovely.escapeHtml(product.nama_produk)}</h1>
@@ -63,7 +64,10 @@
   Flovely.request(`/api/products/${encodeURIComponent(productId)}`)
     .then((data) => {
       product = data;
-      render();
+      return Flovely.request("/api/wishlist").then((items) => {
+        isWishlisted = items.some((item) => item.product_id === product.id);
+        render();
+      });
     })
     .catch((error) => {
       root.innerHTML = `<div class="empty-state">${Flovely.escapeHtml(error.message)}<p><a href="index.html">Kembali ke halaman utama</a></p></div>`;
@@ -79,19 +83,24 @@
 
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (!action || !product) return;
-    if (!Flovely.hasSession()) {
-      window.location.href = `login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-      return;
-    }
-
     const message = root.querySelector(".form-message");
     try {
       if (action === "wishlist") {
-        await Flovely.request("/api/wishlist", {
-          method: "POST",
-          body: JSON.stringify({ product_id: product.id })
-        });
-        message.textContent = "Bouquet tersimpan di wishlist.";
+        if (isWishlisted) {
+          await Flovely.request(`/api/wishlist/${encodeURIComponent(product.id)}`, { method: "DELETE" });
+        } else {
+          await Flovely.request("/api/wishlist", {
+            method: "POST",
+            body: JSON.stringify({ product_id: product.id })
+          });
+        }
+        isWishlisted = !isWishlisted;
+        const wishlistButton = root.querySelector(".detail-wishlist");
+        wishlistButton.classList.toggle("saved", isWishlisted);
+        wishlistButton.textContent = isWishlisted ? "♥" : "♡";
+        wishlistButton.setAttribute("aria-label", `${isWishlisted ? "Hapus dari" : "Simpan ke"} wishlist`);
+        wishlistButton.setAttribute("aria-pressed", String(isWishlisted));
+        message.textContent = isWishlisted ? "Bouquet tersimpan di wishlist." : "Bouquet dihapus dari wishlist.";
         message.classList.add("success");
         return;
       }

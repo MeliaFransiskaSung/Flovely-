@@ -4,6 +4,9 @@
 
   const activePage = window.location.pathname.split("/").pop() || "index.html";
   const navLink = (href, label, icon) => `<a class="nav-link${activePage === href ? " active" : ""}" href="${href}"><span aria-hidden="true">${icon}</span>${label}</a>`;
+  const signedInLinks = Flovely.hasSession()
+    ? `${navLink("orders.html", "Pesanan", "⌁")}${navLink("profile.html", "Profil", "◯")}`
+    : "";
   root.innerHTML = `
     <header class="site-header">
       <div class="wrap header-inner">
@@ -12,10 +15,8 @@
         <nav class="main-nav" aria-label="Navigasi utama">
           ${navLink("index.html", "Home", "⌂")}
           ${navLink("wishlist.html", "Wishlist", "♡")}
-          ${navLink("orders.html", "Pesanan", "⌁")}
-          ${navLink("profile.html", "Profil", "◯")}
+          ${signedInLinks}
           <a class="nav-cart${activePage === "cart.html" ? " active" : ""}" href="cart.html"><span aria-hidden="true">♧</span> Keranjang</a>
-          <a class="nav-login" href="${Flovely.hasSession() ? "profile.html" : "login.html"}">${Flovely.hasSession() ? "Akun saya" : "Login"}</a>
         </nav>
       </div>
     </header>`;

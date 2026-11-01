@@ -1,10 +1,7 @@
 (function () {
   const root = document.getElementById("checkout-root");
-  if (!Flovely.requireSession()) return;
-  let cartItems = [];
 
   function render(items, profile) {
-    cartItems = items;
     if (!items.length) {
       root.innerHTML = '<div class="empty-state"><p>Keranjangmu masih kosong.</p><a class="button button-primary" href="index.html">Cari bouquet</a></div>';
       return;
@@ -47,7 +44,10 @@
         method: "POST",
         body: JSON.stringify(body)
       });
-      root.innerHTML = `<div class="empty-state"><span class="auth-flower" style="margin:0 auto 15px">✓</span><h2>Pesanan berhasil dibuat!</h2><p>Nomor pesanan <strong>${Flovely.escapeHtml(order.nomor_pesanan)}</strong></p><p>Total pembayaran: <strong>${Flovely.formatPrice(order.total_harga)}</strong></p><a class="button button-primary" href="orders.html">Lihat Pesanan Saya</a></div>`;
+      const nextStep = Flovely.hasSession()
+        ? '<a class="button button-primary" href="orders.html">Lihat Pesanan Saya</a>'
+        : '<a class="button button-primary" href="index.html">Kembali ke beranda</a>';
+      root.innerHTML = `<div class="empty-state"><span class="auth-flower" style="margin:0 auto 15px">✓</span><h2>Pesanan berhasil dibuat!</h2><p>Nomor pesanan <strong>${Flovely.escapeHtml(order.nomor_pesanan)}</strong></p><p>Total pembayaran: <strong>${Flovely.formatPrice(order.total_harga)}</strong></p>${nextStep}</div>`;
     } catch (error) {
       message.textContent = error.message;
       button.disabled = false;
